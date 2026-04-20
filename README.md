@@ -1,0 +1,163 @@
+# tickstem/cron
+
+Go SDK for [Tickstem](https://tickstem.dev) — reliable cron jobs for production apps.
+
+Works on Vercel, Railway, Render, Fly.io, and anywhere else that can't run an always-on scheduler.
+
+## Install
+
+```bash
+go get github.com/tickstem/cron
+```
+
+## Quick start
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "os"
+
+    "github.com/tickstem/cron"
+)
+
+func main() {
+    client := cron.New(os.Getenv("TICKSTEM_API_KEY"))
+
+    job, err := client.Register(context.Background(), cron.RegisterParams{
+        Name:     "daily-cleanup",
+        Schedule: "0 2 * * *",
+        Endpoint: "https://yourapp.com/jobs/cleanup",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Printf("job registered: %s (next run: %s)", job.ID, job.NextRunAt)
+}
+```
+
+Get your API key at [app.tickstem.dev](https://app.tickstem.dev).
+
+## Usage
+
+### Create a client
+
+```go
+// Minimal — uses https://api.tickstem.dev/v1
+client := cron.New(os.Getenv("TICKSTEM_API_KEY"))
+
+// With options
+client := cron.New(apiKey,
+    cron.WithBaseURL("http://localhost:8080/v1"), // local dev / tsk-local
+)
+```
+
+### Register a job
+
+```go
+job, err := client.Register(ctx, cron.RegisterParams{
+    Name:        "send-digest",
+    Description: "Weekly email digest to all users",
+    Schedule:    "0 9 * * 1",                         // every Monday at 09:00
+    Endpoint:    "https://yourapp.com/jobs/digest",
+    Method:      "POST",                               // default
+    TimeoutSecs: 60,                                   // default: 30
+})
+```
+
+### List jobs
+
+```go
+jobs, err := client.List(ctx)
+for _, j := range jobs {
+    fmt.Printf("%s  %s  %s\n", j.ID, j.Schedule, j.Status)
+}
+```
+
+### Get a job
+
+```go
+job, err := client.Get(ctx, "job_abc123")
+```
+
+### Pause / Resume
+
+```go
+job, err := client.Pause(ctx, jobID)
+job, err := client.Resume(ctx, jobID)
+```
+
+### Delete a job
+
+```go
+err := client.Delete(ctx, jobID)
+```
+
+### Execution history
+
+```go
+executions, err := client.Executions(ctx, jobID)
+for _, e := range executions {
+    fmt.Printf("%s  %s  %dms\n", e.ID, e.Status, *e.DurationMs)
+}
+```
+
+## Error handling
+
+```go
+job, err := client.Get(ctx, someID)
+if err != nil {
+    if cron.IsNotFound(err) {
+        // job doesn't exist
+    }
+    if cron.IsUnauthorized(err) {
+        // invalid API key
+    }
+    if cron.IsQuotaExceeded(err) {
+        // monthly execution quota hit — upgrade at app.tickstem.dev/dashboard/billing
+    }
+    // inspect the raw error
+    var apiErr *cron.APIError
+    if errors.As(err, &apiErr) {
+        fmt.Println(apiErr.StatusCode, apiErr.Message)
+    }
+}
+```
+
+## Cron expression reference
+
+```
+┌─────── minute        (0–59)
+│ ┌───── hour          (0–23)
+│ │ ┌─── day of month  (1–31)
+│ │ │ ┌─ month         (1–12)
+│ │ │ │ ┌ day of week  (0–6, Sun=0)
+│ │ │ │ │
+* * * * *
+
+Examples:
+  0 * * * *      every hour
+  */15 * * * *   every 15 minutes
+  0 2 * * *      daily at 02:00 UTC
+  0 9 * * 1      every Monday at 09:00 UTC
+  0 0 1 * *      first day of every month
+```
+
+Use [crontab.guru](https://crontab.guru) to build and validate expressions.
+
+## Pricing
+
+| Plan    | Executions/month | Price  |
+|---------|-----------------|--------|
+| Free    | 1,000           | $0     |
+| Starter | 10,000          | $12/mo |
+| Pro     | 100,000         | $29/mo |
+
+[View full pricing →](https://tickstem.dev/#pricing)
+
+## License
+
+MIT

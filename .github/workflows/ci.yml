@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test ./... -race -coverprofile=coverage.out
+
+      - name: Coverage check
+        run: |
+          coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Coverage: ${coverage}%"
+          awk "BEGIN { if ($coverage < 80) { print \"Coverage below 80%\"; exit 1 } }"
+
+      - name: Vet
+        run: go vet ./...
