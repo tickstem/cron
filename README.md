@@ -127,6 +127,30 @@ if err != nil {
 }
 ```
 
+## Local development
+
+Use `tsk-local` to test your job handlers without hitting the live API.
+It runs the full Tickstem API contract in-memory on your machine.
+
+```bash
+go install github.com/tickstem/cron/cmd/tsk-local@latest
+tsk-local                  # starts on :8090
+tsk-local --port 9000      # custom port
+```
+
+Then point the SDK at it:
+
+```go
+client := cron.New("any-key",
+    cron.WithBaseURL("http://localhost:8090/v1"))
+```
+
+The dashboard at `http://localhost:8090` shows registered jobs,
+execution history, and a **run** button for instant manual triggers.
+
+> Jobs and history are in-memory — everything resets on restart.
+> Use the real platform for production.
+
 ## Cron expression reference
 
 ```
