@@ -17,7 +17,9 @@ jobs:
           go-version-file: go.mod
 
       - name: Test
-        run: go test ./... -race -coverprofile=coverage.out
+        # cmd/ packages are wiring-only and excluded from coverage (same as platform).
+        # -coverpkg scopes measurement to the SDK package; ./... still builds cmd/tsk-local.
+        run: go test ./... -race -coverprofile=coverage.out -coverpkg=github.com/tickstem/cron
 
       - name: Coverage check
         run: |
