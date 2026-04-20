@@ -100,6 +100,15 @@ func (c *Client) Resume(ctx context.Context, jobID string) (*Job, error) {
 	return c.setStatus(ctx, jobID, "active")
 }
 
+// Update replaces a job's configuration. All RegisterParams fields are overwritten.
+func (c *Client) Update(ctx context.Context, jobID string, params RegisterParams) (*Job, error) {
+	var job Job
+	if err := c.do(ctx, http.MethodPut, "/jobs/"+jobID, params, &job); err != nil {
+		return nil, err
+	}
+	return &job, nil
+}
+
 // Delete permanently removes a job and its execution history.
 func (c *Client) Delete(ctx context.Context, jobID string) error {
 	return c.do(ctx, http.MethodDelete, "/jobs/"+jobID, nil, nil)
