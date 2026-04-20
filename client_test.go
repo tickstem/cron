@@ -126,7 +126,7 @@ func TestList(t *testing.T) {
 		client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, http.MethodGet, r.Method)
 			assert.Equal(t, "/jobs", r.URL.Path)
-			writeJSON(t, w, http.StatusOK, jobs)
+			writeJSON(t, w, http.StatusOK, map[string]any{"jobs": jobs, "limit": 20, "offset": 0})
 		})
 
 		got, err := client.List(context.Background())
@@ -139,7 +139,7 @@ func TestList(t *testing.T) {
 
 	t.Run("given no jobs when listing then returns empty slice", func(t *testing.T) {
 		client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-			writeJSON(t, w, http.StatusOK, []cron.Job{})
+			writeJSON(t, w, http.StatusOK, map[string]any{"jobs": []cron.Job{}, "limit": 20, "offset": 0})
 		})
 
 		got, err := client.List(context.Background())
@@ -268,8 +268,9 @@ func TestExecutions(t *testing.T) {
 
 		client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, http.MethodGet, r.Method)
-			assert.Equal(t, "/jobs/job_1/executions", r.URL.Path)
-			writeJSON(t, w, http.StatusOK, executions)
+			assert.Equal(t, "/executions", r.URL.Path)
+			assert.Equal(t, "job_1", r.URL.Query().Get("job_id"))
+			writeJSON(t, w, http.StatusOK, map[string]any{"executions": executions, "limit": 20, "offset": 0})
 		})
 
 		got, err := client.Executions(context.Background(), "job_1")
@@ -289,7 +290,7 @@ func TestWithBaseURL(t *testing.T) {
 		requestReceived := false
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestReceived = true
-			writeJSON(t, w, http.StatusOK, []cron.Job{})
+			writeJSON(t, w, http.StatusOK, map[string]any{"jobs": []cron.Job{}, "limit": 20, "offset": 0})
 		}))
 		defer srv.Close()
 

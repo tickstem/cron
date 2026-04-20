@@ -74,11 +74,13 @@ func (c *Client) Register(ctx context.Context, params RegisterParams) (*Job, err
 
 // List returns all jobs for the authenticated account.
 func (c *Client) List(ctx context.Context) ([]Job, error) {
-	var jobs []Job
-	if err := c.do(ctx, http.MethodGet, "/jobs", nil, &jobs); err != nil {
+	var result struct {
+		Jobs []Job `json:"jobs"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/jobs", nil, &result); err != nil {
 		return nil, err
 	}
-	return jobs, nil
+	return result.Jobs, nil
 }
 
 // Get returns a single job by ID.
@@ -116,11 +118,13 @@ func (c *Client) Delete(ctx context.Context, jobID string) error {
 
 // Executions returns the execution history for a job, most recent first.
 func (c *Client) Executions(ctx context.Context, jobID string) ([]Execution, error) {
-	var executions []Execution
-	if err := c.do(ctx, http.MethodGet, "/jobs/"+jobID+"/executions", nil, &executions); err != nil {
+	var result struct {
+		Executions []Execution `json:"executions"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/executions?job_id="+jobID, nil, &result); err != nil {
 		return nil, err
 	}
-	return executions, nil
+	return result.Executions, nil
 }
 
 // ── internal ──────────────────────────────────────────────────────────────────
