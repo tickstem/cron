@@ -1,5 +1,9 @@
 # tickstem/cron
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/tickstem/cron.svg)](https://pkg.go.dev/github.com/tickstem/cron)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tickstem/cron)](https://goreportcard.com/report/github.com/tickstem/cron)
+[![codecov](https://codecov.io/gh/tickstem/cron/badge.svg)](https://codecov.io/gh/tickstem/cron)
+
 Go SDK for [Tickstem](https://tickstem.dev) — reliable cron jobs for production apps.
 
 Works on Vercel, Railway, Render, Fly.io, and anywhere else that can't run an always-on scheduler.
