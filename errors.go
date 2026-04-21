@@ -15,19 +15,16 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("tickstem: API error %d: %s", e.StatusCode, e.Message)
 }
 
-// IsNotFound reports whether err is a 404 API error.
 func IsNotFound(err error) bool {
 	apiErr, ok := err.(*APIError)
 	return ok && apiErr.StatusCode == 404
 }
 
-// IsUnauthorized reports whether err is a 401 API error.
 func IsUnauthorized(err error) bool {
 	apiErr, ok := err.(*APIError)
 	return ok && apiErr.StatusCode == 401
 }
 
-// IsQuotaExceeded reports whether err is a 429 quota-exceeded error.
 func IsQuotaExceeded(err error) bool {
 	apiErr, ok := err.(*APIError)
 	return ok && apiErr.StatusCode == 429

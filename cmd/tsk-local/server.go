@@ -33,20 +33,18 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /v1/jobs", s.registerJob)
 	mux.HandleFunc("GET /v1/jobs", s.listJobs)
 	mux.HandleFunc("GET /v1/jobs/{id}", s.getJob)
+	mux.HandleFunc("PUT /v1/jobs/{id}", s.updateJob)
 	mux.HandleFunc("PATCH /v1/jobs/{id}", s.updateJobStatus)
 	mux.HandleFunc("DELETE /v1/jobs/{id}", s.deleteJob)
-	mux.HandleFunc("GET /v1/jobs/{id}/executions", s.listExecutions)
+	mux.HandleFunc("GET /v1/executions", s.listExecutions)
 
 	// tsk-local extension — not on the real platform
 	mux.HandleFunc("POST /v1/jobs/{id}/trigger", s.triggerJob)
 
-	// Dashboard UI
 	mux.HandleFunc("GET /", s.dashboard)
 
 	return mux
 }
-
-// ── API handlers ──────────────────────────────────────────────────────────────
 
 func (s *server) registerJob(w http.ResponseWriter, r *http.Request) {
 	var params cron.RegisterParams
@@ -90,12 +88,12 @@ func (s *server) registerJob(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, job)
 }
 
-func (s *server) listJobs(w http.ResponseWriter, r *http.Request) {
+func (s *server) listJobs(w http.ResponseWriter, _ *http.Request) {
 	jobs := s.store.listJobs()
 	if jobs == nil {
 		jobs = []cron.Job{}
 	}
-	writeJSON(w, http.StatusOK, jobs)
+	writeJSON(w, http.StatusOK, map[string]any{"jobs": jobs, "limit": 100, "offset": 0})
 }
 
 func (s *server) getJob(w http.ResponseWriter, r *http.Request) {
@@ -104,6 +102,24 @@ func (s *server) getJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "job not found")
 		return
 	}
+	writeJSON(w, http.StatusOK, job)
+}
+
+func (s *server) updateJob(w http.ResponseWriter, r *http.Request) {
+	var params cron.RegisterParams
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	jobID := r.PathValue("id")
+	job, ok := s.store.updateJobParams(jobID, params)
+	if !ok {
+		writeError(w, http.StatusNotFound, "job not found")
+		return
+	}
+
+	s.log.Info("job updated", "id", jobID)
 	writeJSON(w, http.StatusOK, job)
 }
 
@@ -141,7 +157,11 @@ func (s *server) deleteJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) listExecutions(w http.ResponseWriter, r *http.Request) {
-	jobID := r.PathValue("id")
+	jobID := r.URL.Query().Get("job_id")
+	if jobID == "" {
+		writeError(w, http.StatusBadRequest, "job_id query parameter is required")
+		return
+	}
 	if _, ok := s.store.getJob(jobID); !ok {
 		writeError(w, http.StatusNotFound, "job not found")
 		return
@@ -150,7 +170,7 @@ func (s *server) listExecutions(w http.ResponseWriter, r *http.Request) {
 	if executions == nil {
 		executions = []cron.Execution{}
 	}
-	writeJSON(w, http.StatusOK, executions)
+	writeJSON(w, http.StatusOK, map[string]any{"executions": executions, "limit": 100, "offset": 0})
 }
 
 func (s *server) triggerJob(w http.ResponseWriter, r *http.Request) {
@@ -167,24 +187,20 @@ func (s *server) triggerJob(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, map[string]string{"message": "triggered"})
 }
 
-// ── Dashboard ─────────────────────────────────────────────────────────────────
-
-func (s *server) dashboard(w http.ResponseWriter, r *http.Request) {
+func (s *server) dashboard(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte(dashboardHTML)) //nolint:errcheck
+	_, _ = w.Write([]byte(dashboardHTML))
 }
 
-// ── Job runner (called by scheduler and manual trigger) ───────────────────────
-
+// runJob is called by both the scheduler and manual triggers.
 func (s *server) runJob(job cron.Job) {
 	now := time.Now().UTC()
 	execID := "exec_" + randomID()
 
-	running := cron.ExecutionStatus("running")
 	exec := cron.Execution{
 		ID:          execID,
 		JobID:       job.ID,
-		Status:      running,
+		Status:      cron.ExecutionStatus("running"),
 		ScheduledAt: now,
 		StartedAt:   &now,
 	}
@@ -209,18 +225,15 @@ func (s *server) runJob(job cron.Job) {
 
 	s.store.updateExecution(exec)
 
-	// Update next run time
 	if nextRun, ok := s.scheduler.nextRun(job.ID); ok {
 		s.store.updateJobNextRun(job.ID, nextRun)
 	}
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(body) //nolint:errcheck
+	_ = json.NewEncoder(w).Encode(body)
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
@@ -229,8 +242,6 @@ func writeError(w http.ResponseWriter, status int, message string) {
 
 func randomID() string {
 	b := make([]byte, 8)
-	rand.Read(b) //nolint:errcheck
+	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }
-
-

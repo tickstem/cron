@@ -105,6 +105,39 @@ for _, e := range executions {
 }
 ```
 
+## Securing your endpoint
+
+Tickstem calls your endpoint over the public internet. To prevent unauthorized
+callers from triggering your job handler, add a shared secret in the job headers
+and validate it in your handler:
+
+```go
+job, err := client.Register(ctx, cron.RegisterParams{
+    Name:     "daily-cleanup",
+    Schedule: "0 2 * * *",
+    Endpoint: "https://yourapp.com/jobs/cleanup",
+    Method:   "POST",
+    Headers: map[string]string{
+        "X-Tickstem-Secret": os.Getenv("CRON_SECRET"),
+    },
+})
+```
+
+In your handler, reject requests that don't carry the secret:
+
+```go
+func cronHandler(w http.ResponseWriter, r *http.Request) {
+    if r.Header.Get("X-Tickstem-Secret") != os.Getenv("CRON_SECRET") {
+        http.Error(w, "unauthorized", http.StatusUnauthorized)
+        return
+    }
+    // ... do work
+}
+```
+
+Use a long random value for `CRON_SECRET` (e.g. `openssl rand -hex 32`).
+Store it as an environment variable in both your app and your Tickstem job — never hardcode it.
+
 ## Error handling
 
 ```go

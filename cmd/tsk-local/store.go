@@ -7,12 +7,6 @@ import (
 	"github.com/tickstem/cron"
 )
 
-type localExecution struct {
-	cron.Execution
-	// cronEntryID links back to the scheduler so we can remove it on delete.
-	cronEntryID int
-}
-
 type jobRecord struct {
 	job         cron.Job
 	cronEntryID int
@@ -76,6 +70,22 @@ func (s *store) updateJobNextRun(id string, nextRun time.Time) {
 		return
 	}
 	rec.job.NextRunAt = &nextRun
+}
+
+func (s *store) updateJobParams(id string, params cron.RegisterParams) (cron.Job, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	rec, ok := s.jobs[id]
+	if !ok {
+		return cron.Job{}, false
+	}
+	rec.job.Name = params.Name
+	rec.job.Schedule = params.Schedule
+	rec.job.Endpoint = params.Endpoint
+	rec.job.Description = params.Description
+	rec.job.Method = params.Method
+	rec.job.TimeoutSecs = params.TimeoutSecs
+	return rec.job, true
 }
 
 func (s *store) deleteJob(id string) (int, bool) {

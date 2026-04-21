@@ -3,3 +3,8 @@
 coverage.out
 tsk-local
 tsk-mcp
+/.idea/.gitignore
+/.idea/cron.iml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/vcs.xml

@@ -30,8 +30,6 @@ func (s *scheduler) stop() {
 	s.cron.Stop()
 }
 
-// addJob registers a job with the cron scheduler.
-// Returns the internal entry ID and the next scheduled run time.
 func (s *scheduler) addJob(job tsk.Job) (int, time.Time, error) {
 	// Prefix with "0 " to allow standard 5-field cron (min hour dom mon dow).
 	// robfig/cron/v3 with WithSeconds() expects 6 fields; we normalise here.

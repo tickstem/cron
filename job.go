@@ -2,7 +2,6 @@ package cron
 
 import "time"
 
-// Job represents a scheduled cron job.
 type Job struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
@@ -16,42 +15,26 @@ type Job struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
-// RegisterParams holds the fields required to create a new job.
 type RegisterParams struct {
-	// Name is a human-readable label for the job (required).
-	Name string `json:"name"`
-
-	// Schedule is a standard 5-field cron expression (required).
-	// Example: "0 * * * *" runs every hour at minute 0.
-	Schedule string `json:"schedule"`
-
-	// Endpoint is the URL that will be called on each execution (required).
-	Endpoint string `json:"endpoint"`
-
-	// Description is an optional human-readable note.
+	Name        string `json:"name"`
+	Schedule    string `json:"schedule"`
+	Endpoint    string `json:"endpoint"`
 	Description string `json:"description,omitempty"`
-
-	// Method is the HTTP method used when calling Endpoint.
-	// Defaults to "POST" when empty.
+	// Method defaults to "POST" when empty.
 	Method string `json:"method,omitempty"`
-
-	// TimeoutSecs is how long the executor waits before timing out.
-	// Defaults to 30 when zero.
+	// Headers are sent with each request — use for endpoint authentication.
+	Headers map[string]string `json:"headers,omitempty"`
+	// TimeoutSecs defaults to 30 when zero.
 	TimeoutSecs int `json:"timeout_secs,omitempty"`
 }
 
-// ExecutionStatus represents the outcome of a single job run.
 type ExecutionStatus string
 
 const (
-	ExecutionStatusPending ExecutionStatus = "pending"
-	ExecutionStatusRunning ExecutionStatus = "running"
 	ExecutionStatusSuccess ExecutionStatus = "success"
 	ExecutionStatusFailed  ExecutionStatus = "failed"
-	ExecutionStatusTimeout ExecutionStatus = "timeout"
 )
 
-// Execution is a single run of a Job.
 type Execution struct {
 	ID          string          `json:"id"`
 	JobID       string          `json:"job_id"`

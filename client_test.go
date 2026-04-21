@@ -13,8 +13,6 @@ import (
 	"github.com/tickstem/cron"
 )
 
-// serverFunc is an http.HandlerFunc that also records the incoming request
-// for assertion in tests.
 type serverFunc func(w http.ResponseWriter, r *http.Request)
 
 func newTestClient(t *testing.T, handler serverFunc) (*cron.Client, *httptest.Server) {
@@ -31,8 +29,6 @@ func writeJSON(t *testing.T, w http.ResponseWriter, statusCode int, body any) {
 	w.WriteHeader(statusCode)
 	require.NoError(t, json.NewEncoder(w).Encode(body))
 }
-
-// ── Register ──────────────────────────────────────────────────────────────────
 
 func TestRegister(t *testing.T) {
 	t.Run("given valid params when registering then returns created job", func(t *testing.T) {
@@ -114,8 +110,6 @@ func TestRegister(t *testing.T) {
 	})
 }
 
-// ── List ──────────────────────────────────────────────────────────────────────
-
 func TestList(t *testing.T) {
 	t.Run("given existing jobs when listing then returns all jobs", func(t *testing.T) {
 		jobs := []cron.Job{
@@ -149,8 +143,6 @@ func TestList(t *testing.T) {
 	})
 }
 
-// ── Get ───────────────────────────────────────────────────────────────────────
-
 func TestGet(t *testing.T) {
 	t.Run("given existing job when getting by ID then returns job", func(t *testing.T) {
 		want := cron.Job{ID: "job_abc", Name: "backup", Status: "active"}
@@ -180,8 +172,6 @@ func TestGet(t *testing.T) {
 		assert.True(t, cron.IsNotFound(err))
 	})
 }
-
-// ── Pause / Resume ────────────────────────────────────────────────────────────
 
 func TestPause(t *testing.T) {
 	t.Run("given active job when pausing then sends PATCH with paused status", func(t *testing.T) {
@@ -223,8 +213,6 @@ func TestResume(t *testing.T) {
 	})
 }
 
-// ── Delete ────────────────────────────────────────────────────────────────────
-
 func TestDelete(t *testing.T) {
 	t.Run("given existing job when deleting then sends DELETE and returns no error", func(t *testing.T) {
 		client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
@@ -249,8 +237,6 @@ func TestDelete(t *testing.T) {
 		assert.True(t, cron.IsUnauthorized(err))
 	})
 }
-
-// ── Executions ────────────────────────────────────────────────────────────────
 
 func TestExecutions(t *testing.T) {
 	t.Run("given job with history when listing executions then returns executions", func(t *testing.T) {
@@ -283,8 +269,6 @@ func TestExecutions(t *testing.T) {
 	})
 }
 
-// ── Options ───────────────────────────────────────────────────────────────────
-
 func TestWithBaseURL(t *testing.T) {
 	t.Run("given custom base URL when making request then uses that URL", func(t *testing.T) {
 		requestReceived := false
@@ -299,5 +283,60 @@ func TestWithBaseURL(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.True(t, requestReceived)
+	})
+}
+
+func TestWithHTTPClient(t *testing.T) {
+	t.Run("given custom HTTP client when making request then uses that client", func(t *testing.T) {
+		requestReceived := false
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestReceived = true
+			writeJSON(t, w, http.StatusOK, map[string]any{"jobs": []cron.Job{}, "limit": 20, "offset": 0})
+		}))
+		defer srv.Close()
+
+		client := cron.New("tsk_key",
+			cron.WithBaseURL(srv.URL),
+			cron.WithHTTPClient(srv.Client()),
+		)
+		_, err := client.List(context.Background())
+
+		require.NoError(t, err)
+		assert.True(t, requestReceived)
+	})
+}
+
+func TestUpdate(t *testing.T) {
+	t.Run("given existing job when updating then sends PUT and returns updated job", func(t *testing.T) {
+		want := cron.Job{ID: "job_1", Name: "renamed", Schedule: "0 3 * * *", Status: "active"}
+
+		client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPut, r.Method)
+			assert.Equal(t, "/jobs/job_1", r.URL.Path)
+
+			var params cron.RegisterParams
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&params))
+			assert.Equal(t, "renamed", params.Name)
+
+			writeJSON(t, w, http.StatusOK, want)
+		})
+
+		got, err := client.Update(context.Background(), "job_1", cron.RegisterParams{
+			Name:     "renamed",
+			Schedule: "0 3 * * *",
+			Endpoint: "https://example.com/jobs/renamed",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, "renamed", got.Name)
+		assert.Equal(t, "0 3 * * *", got.Schedule)
+	})
+}
+
+func TestAPIError(t *testing.T) {
+	t.Run("given API error when calling Error then returns formatted message", func(t *testing.T) {
+		err := &cron.APIError{StatusCode: 422, Message: "invalid cron expression"}
+		assert.Equal(t, "tickstem: API error 422: invalid cron expression", err.Error())
 	})
 }

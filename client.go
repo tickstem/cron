@@ -30,7 +30,6 @@ type Client struct {
 	httpClient *http.Client
 }
 
-// Option configures a Client.
 type Option func(*Client)
 
 // WithBaseURL overrides the API base URL. Useful for testing with tsk-local.
@@ -40,15 +39,12 @@ func WithBaseURL(url string) Option {
 	}
 }
 
-// WithHTTPClient replaces the default HTTP client.
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) {
 		c.httpClient = hc
 	}
 }
 
-// New creates a Client authenticated with apiKey.
-// Options are applied in order after the defaults are set.
 func New(apiKey string, opts ...Option) *Client {
 	c := &Client{
 		apiKey:  apiKey,
@@ -63,7 +59,6 @@ func New(apiKey string, opts ...Option) *Client {
 	return c
 }
 
-// Register creates a new cron job and returns it.
 func (c *Client) Register(ctx context.Context, params RegisterParams) (*Job, error) {
 	var job Job
 	if err := c.do(ctx, http.MethodPost, "/jobs", params, &job); err != nil {
@@ -72,7 +67,6 @@ func (c *Client) Register(ctx context.Context, params RegisterParams) (*Job, err
 	return &job, nil
 }
 
-// List returns all jobs for the authenticated account.
 func (c *Client) List(ctx context.Context) ([]Job, error) {
 	var result struct {
 		Jobs []Job `json:"jobs"`
@@ -83,7 +77,6 @@ func (c *Client) List(ctx context.Context) ([]Job, error) {
 	return result.Jobs, nil
 }
 
-// Get returns a single job by ID.
 func (c *Client) Get(ctx context.Context, jobID string) (*Job, error) {
 	var job Job
 	if err := c.do(ctx, http.MethodGet, "/jobs/"+jobID, nil, &job); err != nil {
@@ -92,12 +85,10 @@ func (c *Client) Get(ctx context.Context, jobID string) (*Job, error) {
 	return &job, nil
 }
 
-// Pause suspends a job so it no longer fires.
 func (c *Client) Pause(ctx context.Context, jobID string) (*Job, error) {
 	return c.setStatus(ctx, jobID, "paused")
 }
 
-// Resume reactivates a paused job.
 func (c *Client) Resume(ctx context.Context, jobID string) (*Job, error) {
 	return c.setStatus(ctx, jobID, "active")
 }
@@ -111,12 +102,10 @@ func (c *Client) Update(ctx context.Context, jobID string, params RegisterParams
 	return &job, nil
 }
 
-// Delete permanently removes a job and its execution history.
 func (c *Client) Delete(ctx context.Context, jobID string) error {
 	return c.do(ctx, http.MethodDelete, "/jobs/"+jobID, nil, nil)
 }
 
-// Executions returns the execution history for a job, most recent first.
 func (c *Client) Executions(ctx context.Context, jobID string) ([]Execution, error) {
 	var result struct {
 		Executions []Execution `json:"executions"`
@@ -126,8 +115,6 @@ func (c *Client) Executions(ctx context.Context, jobID string) ([]Execution, err
 	}
 	return result.Executions, nil
 }
-
-// ── internal ──────────────────────────────────────────────────────────────────
 
 type statusBody struct {
 	Status string `json:"status"`
@@ -151,7 +138,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 	if err != nil {
 		return fmt.Errorf("tickstem: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {

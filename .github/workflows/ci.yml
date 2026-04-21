@@ -27,5 +27,10 @@ jobs:
           echo "Coverage: ${coverage}%"
           awk "BEGIN { if ($coverage < 80) { print \"Coverage below 80%\"; exit 1 } }"
 
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.out
+
       - name: Vet
         run: go vet ./...
