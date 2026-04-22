@@ -174,6 +174,7 @@ func (c *Client) buildRequest(ctx context.Context, method, path string, body any
 	}
 
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("User-Agent", "tickstem-go/"+Version)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
