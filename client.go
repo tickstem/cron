@@ -74,6 +74,9 @@ func (c *Client) List(ctx context.Context) ([]Job, error) {
 	if err := c.do(ctx, http.MethodGet, "/jobs", nil, &result); err != nil {
 		return nil, err
 	}
+	if result.Jobs == nil {
+		return []Job{}, nil
+	}
 	return result.Jobs, nil
 }
 
@@ -112,6 +115,9 @@ func (c *Client) Executions(ctx context.Context, jobID string) ([]Execution, err
 	}
 	if err := c.do(ctx, http.MethodGet, "/executions?job_id="+jobID, nil, &result); err != nil {
 		return nil, err
+	}
+	if result.Executions == nil {
+		return []Execution{}, nil
 	}
 	return result.Executions, nil
 }
